@@ -13,4 +13,5 @@
     <string name="reviews">Reviews:</string>
     <string name="delete_from_favorite">Remove from \nfavorites</string>
     <string name="no_favotite">You have no favorite movies yet</string>
+    <string name="action_share">Share</string>
 </resources>

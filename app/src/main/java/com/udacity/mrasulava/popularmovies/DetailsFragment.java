@@ -6,7 +6,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.support.v4.view.MenuItemCompat;
+import android.support.v7.widget.ShareActionProvider;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -98,7 +103,7 @@ public class DetailsFragment extends android.support.v4.app.Fragment {
     };
 
     public DetailsFragment() {
-
+        setHasOptionsMenu(true);
     }
 
     @Override
@@ -139,6 +144,27 @@ public class DetailsFragment extends android.support.v4.app.Fragment {
     public void onStop() {
         super.onStop();
         activity.unregisterReceiver(loadingFinishedReceiver);
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        inflater.inflate(R.menu.details, menu);
+
+        MenuItem menuItem = menu.findItem(R.id.action_share);
+        ShareActionProvider shareActionProvider = (ShareActionProvider) MenuItemCompat.getActionProvider(menuItem);
+        List<Trailer> trailers = trailerAdapter.getTrailers();
+        if (trailers != null && trailers.size() > 0) {
+            shareActionProvider.setShareIntent(createShareIntent(trailers.get(0)));
+        } else menuItem.setVisible(false);
+    }
+
+    private Intent createShareIntent(Trailer trailer) {
+        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+        shareIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
+        shareIntent.setType("text/plain");
+        shareIntent.putExtra(Intent.EXTRA_TEXT, movie.getOriginalTitle() + ": "
+                + Utils.getYoutubeUrl(trailer.getKey()) + " #PopularMovies");
+        return shareIntent;
     }
 
     @OnClick(R.id.btn_fav)
@@ -225,9 +251,12 @@ public class DetailsFragment extends android.support.v4.app.Fragment {
             });
             llTrailers.setVisibility(View.VISIBLE);
             trailerAdapter.setTrailers(trailers);
-            trailerAdapter.notifyDataSetChanged();
+            activity.invalidateOptionsMenu();
             setListViewHeightBasedOnChildren(lvTrailers);
-        } else llTrailers.setVisibility(View.GONE);
+        } else {
+            trailerAdapter.reset();
+            llTrailers.setVisibility(View.GONE);
+        }
     }
 
     private void updateReviewsView() {

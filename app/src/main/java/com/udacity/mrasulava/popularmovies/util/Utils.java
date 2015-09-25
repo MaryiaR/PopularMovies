@@ -27,6 +27,8 @@ public class Utils {
 
     public static final String POSTER_BASE_PATH = "http://image.tmdb.org/t/p/w185/";
 
+    public static final String YOUTUBE_BASE_URL = "http://www.youtube.com/watch?v=";
+
     public static final String ACTION_FILMS_LOADED = "films_loaded";
 
     public static final String ACTION_TRAILERS_LOADED = "trailers_loaded";
@@ -46,8 +48,12 @@ public class Utils {
                 context.getString(R.string.pref_sort_by_default));
     }
 
+    public static String getYoutubeUrl(String key) {
+        return YOUTUBE_BASE_URL + key;
+    }
+
     public static void watchYoutubeVideo(Context context, String key) {
-        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.youtube.com/watch?v=" + key));
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(getYoutubeUrl(key)));
         String title = context.getResources().getString(R.string.chooser_title);
         Intent chooser = Intent.createChooser(intent, title);
         if (intent.resolveActivity(context.getPackageManager()) != null) {

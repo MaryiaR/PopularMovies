@@ -28,6 +28,11 @@ public class TrailerAdapter extends BaseAdapter {
     public void setTrailers(List<Trailer> trailers) {
         this.trailers.clear();
         this.trailers.addAll(trailers);
+        notifyDataSetChanged();
+    }
+
+    public List<Trailer> getTrailers() {
+        return trailers;
     }
 
     public Trailer getItem(int position) {
@@ -50,4 +55,8 @@ public class TrailerAdapter extends BaseAdapter {
         return view;
     }
 
+    public void reset() {
+        trailers.clear();
+        notifyDataSetChanged();
+    }
 }
