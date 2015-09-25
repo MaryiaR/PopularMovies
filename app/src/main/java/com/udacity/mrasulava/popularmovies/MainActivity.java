@@ -4,18 +4,13 @@ import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 
-import com.udacity.mrasulava.popularmovies.model.Film;
-
 
 public class MainActivity extends ActionBarActivity implements FilmsFragment.OnStateChangedListener {
-
-    public static final String POSTER_BASE_PATH = "http://image.tmdb.org/t/p/w185/";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         if (savedInstanceState != null) {
             return;
         }
@@ -32,14 +27,9 @@ public class MainActivity extends ActionBarActivity implements FilmsFragment.OnS
     }
 
     @Override
-    public void onFilmSelected(Film selectedFilm) {
-
-        DetailsFragment detailsFragment = new DetailsFragment();
-        Bundle args = new Bundle();
-        args.putParcelable(DetailsFragment.ARG_SELECTED_FILM, selectedFilm);
-        detailsFragment.setArguments(args);
+    public void onFilmSelected() {
         getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fragment_container, detailsFragment)
+                .replace(R.id.fragment_container, new DetailsFragment())
                 .addToBackStack(null)
                 .commit();
 

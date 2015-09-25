@@ -1,1 +1,1 @@
-To use themoviedb.org API please insert your API key value to field API_KEY in com.udacity.mrasulava.popularmovies.FilmsFragment.java
+To use themoviedb.org API please insert your API key value to field API_KEY in com.udacity.mrasulava.popularmovies.service.MoviesService.java

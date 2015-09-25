@@ -1,43 +1,29 @@
 package com.udacity.mrasulava.popularmovies;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.net.Uri;
-import android.os.AsyncTask;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Parcelable;
-import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
 import android.widget.GridView;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 
-import com.google.gson.Gson;
-import com.squareup.picasso.Picasso;
-import com.udacity.mrasulava.popularmovies.model.Film;
+import com.udacity.mrasulava.popularmovies.adapter.MoviesAdapter;
+import com.udacity.mrasulava.popularmovies.model.Movie;
+import com.udacity.mrasulava.popularmovies.service.MoviesService;
+import com.udacity.mrasulava.popularmovies.util.MovieStorage;
+import com.udacity.mrasulava.popularmovies.util.Utils;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import butterknife.Bind;
@@ -46,13 +32,9 @@ import butterknife.OnClick;
 import butterknife.OnItemClick;
 
 
-/**
- * A placeholder fragment containing a simple view.
- */
 public class FilmsFragment extends Fragment {
 
     private static final String GRID_VIEW_STATE = "grid_view_state";
-    private static final String API_KEY = "<INSERT YOUR API KEY>";
 
     @Bind(R.id.gv_films)
     GridView gvFilms;
@@ -63,38 +45,67 @@ public class FilmsFragment extends Fragment {
     @Bind(R.id.progress)
     ProgressBar progressBar;
 
-    private FilmsAdapter adapter;
+    private MoviesAdapter adapter;
 
     private OnStateChangedListener mCallback;
 
-    private List<Film> films = new ArrayList<>();
+    private List<Movie> movies;
 
     private Parcelable gridViewState;
+
+    private MovieStorage movieManager;
+
+    private Activity activity;
+
+    private BroadcastReceiver filmsLoadedReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            movies = movieManager.getMovies();
+            if (movies != null) {
+                updateViewForState(STATE.MOVIES);
+                adapter.setMovies(movies);
+                adapter.notifyDataSetChanged();
+            } else {
+                updateViewForState(STATE.NO_CONNECTION);
+            }
+        }
+    };
 
     public FilmsFragment() {
         setHasOptionsMenu(true);
     }
 
-    public void setFilms(List<Film> films) {
-        this.films.clear();
-        this.films.addAll(films);
-    }
-
     @Override
     public void onAttach(Activity activity) {
         super.onAttach(activity);
+        this.activity = activity;
         try {
             mCallback = (OnStateChangedListener) activity;
         } catch (ClassCastException e) {
-            throw new ClassCastException(activity.toString()
-                    + " must implement OnHeadlineSelectedListener");
+            throw new ClassCastException(activity.toString() + " must implement OnHeadlineSelectedListener");
         }
     }
 
     @Override
-    public void onPause() {
-        gridViewState = gvFilms.onSaveInstanceState();
-        super.onPause();
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        View rootView = inflater.inflate(R.layout.fragment_main, container, false);
+        ButterKnife.bind(this, rootView);
+        movieManager = MovieStorage.getInstance(activity);
+        adapter = new MoviesAdapter(activity);
+        gvFilms.setAdapter(adapter);
+
+        if (savedInstanceState != null)
+            gridViewState = savedInstanceState.getParcelable(GRID_VIEW_STATE);
+
+        return rootView;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        activity.registerReceiver(filmsLoadedReceiver, new IntentFilter(Utils.ACTION_FILMS_LOADED));
+        updateMovies();
     }
 
     @Override
@@ -105,36 +116,28 @@ public class FilmsFragment extends Fragment {
     }
 
     @Override
+    public void onPause() {
+        gridViewState = gvFilms.onSaveInstanceState();
+        super.onPause();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        activity.unregisterReceiver(filmsLoadedReceiver);
+    }
+
+    @Override
     public void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
         if (gvFilms != null)
             state.putParcelable(GRID_VIEW_STATE, gvFilms.onSaveInstanceState());
     }
 
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-        ButterKnife.bind(this, rootView);
-
-        adapter = new FilmsAdapter(getActivity());
-        gvFilms.setAdapter(adapter);
-
-        if (savedInstanceState != null)
-            gridViewState = savedInstanceState.getParcelable(GRID_VIEW_STATE);
-
-        return rootView;
-    }
-
     @OnItemClick(R.id.gv_films)
     void onItemClick(int position) {
-        mCallback.onFilmSelected(films.get(position));
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        updateFilms();
+        movieManager.setSelectedMovie(movies.get(position));
+        mCallback.onFilmSelected();
     }
 
     @Override
@@ -147,7 +150,7 @@ public class FilmsFragment extends Fragment {
         int id = item.getItemId();
 
         if (id == R.id.action_settings) {
-            startActivity(new Intent(getActivity(), SettingsActivity.class));
+            startActivity(new Intent(activity, SettingsActivity.class));
             return true;
         }
 
@@ -156,7 +159,7 @@ public class FilmsFragment extends Fragment {
 
     private void updateViewForState(STATE state) {
         switch (state) {
-            case FILMS:
+            case MOVIES:
                 gvFilms.setVisibility(View.VISIBLE);
                 progressBar.setVisibility(View.GONE);
                 llNoInternet.setVisibility(View.GONE);
@@ -174,153 +177,42 @@ public class FilmsFragment extends Fragment {
         }
     }
 
+
     enum STATE {
-        FILMS,
+        MOVIES,
         LOADING,
         NO_CONNECTION
     }
 
     @OnClick(R.id.btn_retry)
     public void retry(View view) {
-        updateFilms();
+        updateMovies();
     }
 
-    private void updateFilms() {
-        if (Utils.haveInternetConnection(getActivity())) {
-            updateViewForState(STATE.LOADING);
-            SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(getActivity());
-            String sortBy = sharedPref.getString(getString(R.string.pref_key_sort_by), getString(R.string.pref_sort_by_default));
-            new LoadFilmsTask().execute(sortBy, API_KEY);
+    private void updateMovies() {
+        String sortBy = Utils.getSortBy(activity);
+        if (getString(R.string.pref_sort_favorite).equals(sortBy)) {
+            showFavoriteMovies();
         } else {
-            updateViewForState(STATE.NO_CONNECTION);
-        }
-    }
-
-    public class FilmsAdapter extends BaseAdapter {
-        private Context mContext;
-        private Picasso picasso;
-        private List<Film> films = new ArrayList<>();
-
-        public void setFilms(List<Film> films) {
-            this.films.clear();
-            this.films.addAll(films);
-        }
-
-        public FilmsAdapter(Context c) {
-            mContext = c;
-            picasso = Picasso.with(mContext);
-        }
-
-        public int getCount() {
-            return films.size();
-        }
-
-        public Film getItem(int position) {
-            return films.get(position);
-        }
-
-        public long getItemId(int position) {
-            return 0;
-        }
-
-        public View getView(final int position, View convertView, ViewGroup parent) {
-            final ImageView ivPoster;
-            if (convertView == null) {
-                ivPoster = (ImageView) LayoutInflater.from(mContext).inflate(R.layout.grid_item, null);
-            } else {
-                ivPoster = (ImageView) convertView;
-            }
-            picasso.load(MainActivity.POSTER_BASE_PATH + getItem(position).getPosterPath())
-                    .placeholder(R.drawable.placeholder)
-                    .error(R.drawable.ic_error)
-                    .into(ivPoster);
-            return ivPoster;
-        }
-
-    }
-
-    private class LoadFilmsTask extends AsyncTask<String, Void, List<Film>> {
-        private final String LOG_TAG = LoadFilmsTask.class.getSimpleName();
-
-        @Override
-        protected List<Film> doInBackground(String... params) {
-
-            if (params.length == 0 && params.length < 2)
-                return null;
-
-            HttpURLConnection urlConnection = null;
-            BufferedReader reader = null;
-
-            try {
-                final String BASE_URL =
-                        "http://api.themoviedb.org/3/discover/movie?";
-
-                final String SORT_PARAM = "sort_by";
-                final String KEY_PARAM = "api_key";
-
-                Uri uri = Uri.parse(BASE_URL).buildUpon()
-                        .appendQueryParameter(SORT_PARAM, params[0])
-                        .appendQueryParameter(KEY_PARAM, params[1])
-                        .build();
-
-                URL url = new URL(uri.toString());
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestMethod("GET");
-                urlConnection.connect();
-
-                InputStream inputStream = urlConnection.getInputStream();
-                StringBuilder builder = new StringBuilder();
-                if (inputStream == null) {
-                    return null;
-                }
-                reader = new BufferedReader(new InputStreamReader(inputStream));
-
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    builder.append(line + "\n");
-                }
-
-                if (builder.length() == 0) {
-                    return null;
-                }
-                return getFilmsDataFromJson(builder.toString());
-            } catch (IOException e) {
-                Log.e(LOG_TAG, "Error " + e);
-                return null;
-            } catch (JSONException e) {
-                e.printStackTrace();
-            } finally {
-                if (urlConnection != null) {
-                    urlConnection.disconnect();
-                }
-                if (reader != null) {
-                    try {
-                        reader.close();
-                    } catch (final IOException e) {
-                        Log.e(LOG_TAG, "Error closing stream " + e);
-                    }
-                }
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(List<Film> result) {
-            if (result != null) {
-                updateViewForState(STATE.FILMS);
-                setFilms(result);
-                adapter.setFilms(films);
-                adapter.notifyDataSetChanged();
+            if (Utils.haveInternetConnection(activity)) {
+                updateViewForState(STATE.LOADING);
+                MoviesService.startLoadingMovies(activity);
             } else {
                 updateViewForState(STATE.NO_CONNECTION);
             }
         }
+    }
 
-        private List<Film> getFilmsDataFromJson(String jsonStr)
-                throws JSONException {
-
-            String filmsJson = new JSONObject(jsonStr).getString("results");
-            return Arrays.asList(new Gson().fromJson(filmsJson, Film[].class));
+    private void showFavoriteMovies() {
+        movies = movieManager.getFavoriteMovies();
+        if (movies != null) {
+            for (Movie movie : movies)
+                movie.setFavorite(true);
+            updateViewForState(STATE.MOVIES);
+            adapter.setMovies(movies);
+            adapter.notifyDataSetChanged();
+        } else {
+            updateViewForState(STATE.NO_CONNECTION);
         }
     }
 
@@ -331,7 +223,7 @@ public class FilmsFragment extends Fragment {
     }
 
     public interface OnStateChangedListener {
-        void onFilmSelected(Film film);
+        void onFilmSelected();
     }
 
 }

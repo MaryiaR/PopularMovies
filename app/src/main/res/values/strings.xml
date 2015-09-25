@@ -5,6 +5,11 @@
 
     <string name="rating">%1$s/10</string>
     <string name="connection_error_message">Check your internet connection and try again.</string>
+    <string name="error_loading_trailers">Failed to load trailers and reviews.\nCheck your internet connection and try again.</string>
     <string name="retry">Retry</string>
     <string name="mark_favorite">Mark as\nfavorite</string>
+    <string name="trailers">Trailers:</string>
+    <string name="chooser_title">Open with</string>
+    <string name="reviews">Reviews:</string>
+    <string name="delete_from_favorite">Remove from \nfavorites</string>
 </resources>

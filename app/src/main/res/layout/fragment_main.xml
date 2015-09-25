@@ -8,11 +8,11 @@
         android:id="@+id/gv_films"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="@android:color/darker_gray"
         android:horizontalSpacing="0dp"
-        android:background="@android:color/black"
-        android:verticalSpacing="0dp"
         android:numColumns="@integer/grid_columns"
-        android:stretchMode="columnWidth" />
+        android:stretchMode="columnWidth"
+        android:verticalSpacing="0dp" />
 
     <LinearLayout
         android:id="@+id/ll_no_internet"
