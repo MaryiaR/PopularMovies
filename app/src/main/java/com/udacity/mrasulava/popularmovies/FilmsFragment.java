@@ -17,6 +17,7 @@ import android.view.ViewGroup;
 import android.widget.GridView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 
 import com.udacity.mrasulava.popularmovies.adapter.MoviesAdapter;
 import com.udacity.mrasulava.popularmovies.model.Movie;
@@ -45,6 +46,9 @@ public class FilmsFragment extends Fragment {
     @Bind(R.id.progress)
     ProgressBar progressBar;
 
+    @Bind(R.id.empty_favorite_view)
+    TextView tvEmptyFav;
+
     private MoviesAdapter adapter;
 
     private OnStateChangedListener mCallback;
@@ -53,18 +57,17 @@ public class FilmsFragment extends Fragment {
 
     private Parcelable gridViewState;
 
-    private MovieStorage movieManager;
+    private MovieStorage movieStorage;
 
     private Activity activity;
 
     private BroadcastReceiver filmsLoadedReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            movies = movieManager.getMovies();
+            movies = movieStorage.getMovies();
             if (movies != null) {
                 updateViewForState(STATE.MOVIES);
                 adapter.setMovies(movies);
-                adapter.notifyDataSetChanged();
             } else {
                 updateViewForState(STATE.NO_CONNECTION);
             }
@@ -82,7 +85,7 @@ public class FilmsFragment extends Fragment {
         try {
             mCallback = (OnStateChangedListener) activity;
         } catch (ClassCastException e) {
-            throw new ClassCastException(activity.toString() + " must implement OnHeadlineSelectedListener");
+            throw new ClassCastException(activity.toString() + " must implement OnStateChangedListener");
         }
     }
 
@@ -91,7 +94,7 @@ public class FilmsFragment extends Fragment {
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
         ButterKnife.bind(this, rootView);
-        movieManager = MovieStorage.getInstance(activity);
+        movieStorage = MovieStorage.getInstance(activity);
         adapter = new MoviesAdapter(activity);
         gvFilms.setAdapter(adapter);
 
@@ -136,7 +139,7 @@ public class FilmsFragment extends Fragment {
 
     @OnItemClick(R.id.gv_films)
     void onItemClick(int position) {
-        movieManager.setSelectedMovie(movies.get(position));
+        movieStorage.setSelectedMovie(movies.get(position));
         mCallback.onFilmSelected();
     }
 
@@ -163,16 +166,25 @@ public class FilmsFragment extends Fragment {
                 gvFilms.setVisibility(View.VISIBLE);
                 progressBar.setVisibility(View.GONE);
                 llNoInternet.setVisibility(View.GONE);
+                tvEmptyFav.setVisibility(View.GONE);
                 break;
             case LOADING:
                 gvFilms.setVisibility(View.GONE);
                 progressBar.setVisibility(View.VISIBLE);
                 llNoInternet.setVisibility(View.GONE);
+                tvEmptyFav.setVisibility(View.GONE);
                 break;
             case NO_CONNECTION:
                 gvFilms.setVisibility(View.GONE);
                 progressBar.setVisibility(View.GONE);
                 llNoInternet.setVisibility(View.VISIBLE);
+                tvEmptyFav.setVisibility(View.GONE);
+                break;
+            case NO_FAVORITES:
+                gvFilms.setVisibility(View.GONE);
+                progressBar.setVisibility(View.GONE);
+                llNoInternet.setVisibility(View.GONE);
+                tvEmptyFav.setVisibility(View.VISIBLE);
                 break;
         }
     }
@@ -181,7 +193,8 @@ public class FilmsFragment extends Fragment {
     enum STATE {
         MOVIES,
         LOADING,
-        NO_CONNECTION
+        NO_CONNECTION,
+        NO_FAVORITES
     }
 
     @OnClick(R.id.btn_retry)
@@ -189,7 +202,7 @@ public class FilmsFragment extends Fragment {
         updateMovies();
     }
 
-    private void updateMovies() {
+    public void updateMovies() {
         String sortBy = Utils.getSortBy(activity);
         if (getString(R.string.pref_sort_favorite).equals(sortBy)) {
             showFavoriteMovies();
@@ -204,15 +217,16 @@ public class FilmsFragment extends Fragment {
     }
 
     private void showFavoriteMovies() {
-        movies = movieManager.getFavoriteMovies();
-        if (movies != null) {
-            for (Movie movie : movies)
-                movie.setFavorite(true);
+        movies = movieStorage.getFavoriteMovies();
+        movieStorage.setMovies(movies);
+        if (movies != null && !movies.isEmpty()) {
             updateViewForState(STATE.MOVIES);
             adapter.setMovies(movies);
-            adapter.notifyDataSetChanged();
+            activity.sendBroadcast(new Intent(Utils.ACTION_FILMS_LOADED));
         } else {
-            updateViewForState(STATE.NO_CONNECTION);
+            updateViewForState(STATE.NO_FAVORITES);
+            movieStorage.setSelectedMovie(null);
+            mCallback.updateDetailView();
         }
     }
 
@@ -224,6 +238,10 @@ public class FilmsFragment extends Fragment {
 
     public interface OnStateChangedListener {
         void onFilmSelected();
+
+        void updateDetailView();
+
+        void onFavoriteRemoved();
     }
 
 }

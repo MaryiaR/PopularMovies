@@ -24,6 +24,7 @@
             android:name=".SettingsActivity"
             android:label="@string/title_activity_settings"
             android:theme="@style/ThemeOverlay.AppCompat.Dark"></activity>
+        <activity android:name=".DetailsActivity"/>
 
         <service android:name=".service.MoviesService" />
     </application>

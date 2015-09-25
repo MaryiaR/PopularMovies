@@ -126,23 +126,24 @@ public class MoviesService extends IntentService {
                 .build();
 
         String jsonResponse = executeGetRequest(uri);
-        try {
-            String filmsJson = new JSONObject(jsonResponse).getString("results");
-            List<Movie> movies = Arrays.asList(new Gson().fromJson(filmsJson, Movie[].class));
-            List<Movie> favoriteMovies = movieStorage.getFavoriteMovies();
-            for (Movie movie : movies) {
-                if (favoriteMovies.contains(movie)) {
-                    Movie favorite = favoriteMovies.get(favoriteMovies.indexOf(movie));
-                    movie.setFavorite(true);
-                    movie.setId(favorite.getId());
+        if (jsonResponse != null)
+            try {
+                String filmsJson = new JSONObject(jsonResponse).getString("results");
+                List<Movie> movies = Arrays.asList(new Gson().fromJson(filmsJson, Movie[].class));
+                List<Movie> favoriteMovies = movieStorage.getFavoriteMovies();
+                for (Movie movie : movies) {
+                    if (favoriteMovies.contains(movie)) {
+                        Movie favorite = favoriteMovies.get(favoriteMovies.indexOf(movie));
+                        movie.setFavorite(true);
+                        movie.setId(favorite.getId());
+                    }
                 }
+                movieStorage.setMovies(movies);
+                sendBroadcast(new Intent(Utils.ACTION_FILMS_LOADED));
+            } catch (JSONException e) {
+                Log.e(LOG_TAG, "Error parsing movies: " + e.getMessage());
+                e.printStackTrace();
             }
-            movieStorage.setMovies(movies);
-            sendBroadcast(new Intent(Utils.ACTION_FILMS_LOADED));
-        } catch (JSONException e) {
-            Log.e(LOG_TAG, "Error parsing movies: " + e.getMessage());
-            e.printStackTrace();
-        }
     }
 
     private String executeGetRequest(Uri uri) {

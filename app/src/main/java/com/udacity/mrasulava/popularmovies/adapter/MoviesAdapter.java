@@ -21,6 +21,7 @@ public class MoviesAdapter extends BaseAdapter {
     public void setMovies(List<Movie> movies) {
         this.movies.clear();
         this.movies.addAll(movies);
+        notifyDataSetChanged();
     }
 
     public MoviesAdapter(Context c) {

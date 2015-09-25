@@ -1,6 +1,5 @@
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/fragment_container"
+<fragment xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/fragment_movies"
+    android:name="com.udacity.mrasulava.popularmovies.FilmsFragment"
     android:layout_width="match_parent"
     android:layout_height="match_parent" />
-
-

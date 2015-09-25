@@ -37,6 +37,9 @@ import butterknife.OnItemClick;
 
 public class DetailsFragment extends android.support.v4.app.Fragment {
 
+    @Bind(R.id.ll_root)
+    LinearLayout llRoot;
+
     @Bind(R.id.tv_title)
     TextView tvTitle;
 
@@ -78,6 +81,8 @@ public class DetailsFragment extends android.support.v4.app.Fragment {
 
     private Activity activity;
 
+    private FilmsFragment.OnStateChangedListener mCallback;
+
     private BroadcastReceiver loadingFinishedReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -86,6 +91,8 @@ public class DetailsFragment extends android.support.v4.app.Fragment {
                 updateReviewsView();
             } else if (action.equals(Utils.ACTION_TRAILERS_LOADED)) {
                 updateTrailersView();
+            } else if (action.equals(Utils.ACTION_FILMS_LOADED)) {
+                updateSelectedItem();
             }
         }
     };
@@ -98,6 +105,11 @@ public class DetailsFragment extends android.support.v4.app.Fragment {
     public void onAttach(Activity activity) {
         super.onAttach(activity);
         this.activity = activity;
+        try {
+            mCallback = (FilmsFragment.OnStateChangedListener) activity;
+        } catch (ClassCastException e) {
+            throw new ClassCastException(activity.toString() + " must implement OnStateChangedListener");
+        }
     }
 
     @Override
@@ -107,7 +119,6 @@ public class DetailsFragment extends android.support.v4.app.Fragment {
         ButterKnife.bind(this, rootView);
         movieStorage = MovieStorage.getInstance(activity);
         movie = movieStorage.getSelectedMovie();
-        updateMovieDetails();
         trailerAdapter = new TrailerAdapter(activity);
         lvTrailers.setAdapter(trailerAdapter);
         return rootView;
@@ -119,7 +130,9 @@ public class DetailsFragment extends android.support.v4.app.Fragment {
         updateTrailersAndReviews();
         IntentFilter intentFilter = new IntentFilter(Utils.ACTION_TRAILERS_LOADED);
         intentFilter.addAction(Utils.ACTION_REVIEWS_LOADED);
+        intentFilter.addAction(Utils.ACTION_FILMS_LOADED);
         activity.registerReceiver(loadingFinishedReceiver, intentFilter);
+        updateSelectedItem();
     }
 
     @Override
@@ -132,6 +145,7 @@ public class DetailsFragment extends android.support.v4.app.Fragment {
     public void markAsFavorite(View view) {
         if (movie.isFavorite()) {
             movieStorage.removeFavorite();
+            mCallback.onFavoriteRemoved();
             btnFavorite.setText(getString(R.string.mark_favorite));
         } else {
             movieStorage.saveFavorite();
@@ -150,10 +164,24 @@ public class DetailsFragment extends android.support.v4.app.Fragment {
         updateTrailersAndReviews();
     }
 
-    public void updateMovieDetails() {
-        if (movie == null)
-            return;
+    private void updateSelectedItem() {
+        List<Movie> movies = movieStorage.getMovies();
+        if (movies != null && !movies.isEmpty()) {
+            if (movie == null || !movies.contains(movie)) {
+                movie = movies.get(0);
+                movieStorage.setSelectedMovie(movie);
+            }
+        }
+        updateMovieDetails();
+        updateTrailersAndReviews();
+    }
 
+    public void updateMovieDetails() {
+        if (movie == null) {
+            llRoot.setVisibility(View.GONE);
+            return;
+        }
+        llRoot.setVisibility(View.VISIBLE);
         tvTitle.setText(movie.getOriginalTitle());
         tvDate.setText(movie.getReleaseDate());
 
@@ -176,7 +204,7 @@ public class DetailsFragment extends android.support.v4.app.Fragment {
             MoviesService.startLoadingTrailers(activity);
             MoviesService.startLoadingReviews(activity);
         } else {
-            if (movie.isFavorite()) {
+            if (movie != null && movie.isFavorite()) {
                 updateTrailersView();
                 updateReviewsView();
             } else {
@@ -226,7 +254,6 @@ public class DetailsFragment extends android.support.v4.app.Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        movieStorage.setSelectedMovie(null);
         ButterKnife.unbind(this);
     }
 

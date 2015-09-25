@@ -46,4 +46,15 @@
         android:layout_height="wrap_content"
         android:layout_centerInParent="true"
         android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/empty_favorite_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:padding="@dimen/activity_margin"
+        android:gravity="center"
+        android:text="@string/no_favotite"
+        android:visibility="gone" />
+
 </RelativeLayout>

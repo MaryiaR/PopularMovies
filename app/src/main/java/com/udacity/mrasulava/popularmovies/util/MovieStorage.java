@@ -44,17 +44,22 @@ public class MovieStorage {
         for (Review reviewItem : selectedReviews)
             reviewItem.setMovie(selectedMovie);
 
-        dBHelper.getMovieDao().create(selectedMovie);
+        dBHelper.getMovieDao().createOrUpdate(selectedMovie);
 
         for (Review review : selectedReviews)
-            dBHelper.getReviewDao().create(review);
+            dBHelper.getReviewDao().createOrUpdate(review);
 
         for (Trailer trailer : selectedTrailers)
-            dBHelper.getTrailerDao().create(trailer);
+            dBHelper.getTrailerDao().createOrUpdate(trailer);
     }
 
     public List<Movie> getFavoriteMovies() {
-        return dBHelper.getMovieDao().queryForAll();
+        List<Movie> favoriteMovies = dBHelper.getMovieDao().queryForAll();
+        if (favoriteMovies != null && !favoriteMovies.isEmpty()) {
+            for (Movie movie : favoriteMovies)
+                movie.setFavorite(true);
+        }
+        return favoriteMovies;
     }
 
     public List<Movie> getMovies() {
